@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <data>
+
+    </data>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="权限检查与网络库示例"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginBottom="24dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="当前状态："
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="正在检查权限..."
+                android:textSize="14sp"
+                android:background="@color/darker_gray"
+                android:padding="8dp"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/btnCheckPermissions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="重新检查权限"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestNetwork"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="测试网络连接"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btnTestErnie"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="测试ERNIE API"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="网络库使用说明："
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. 网络权限（INTERNET）不需要动态申请\n2. 该权限在AndroidManifest.xml中声明即可\n3. 其他危险权限需要运行时申请\n4. 包括相机、存储、位置等权限"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp"
+                android:background="@color/light_gray"
+                android:padding="12dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</layout> 

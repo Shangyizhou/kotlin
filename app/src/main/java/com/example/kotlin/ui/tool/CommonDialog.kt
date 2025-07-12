@@ -27,6 +27,9 @@ class CommonDialog : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 设置对话框内容
+        setupDialogContent()
+
         // 设置按钮点击事件
         binding.btnPositive.setOnClickListener {
             onPositiveClick?.invoke()
@@ -36,6 +39,29 @@ class CommonDialog : DialogFragment() {
         binding.btnNegative.setOnClickListener {
             onNegativeClick?.invoke()
             dismiss()
+        }
+    }
+
+    private fun setupDialogContent() {
+        arguments?.let { args ->
+            // 设置标题
+            args.getString("title")?.let { title ->
+                binding.tvTitle.text = title
+            }
+
+            // 设置消息内容
+            args.getString("message")?.let { message ->
+                binding.tvMessage.text = message
+            }
+
+            // 设置按钮文本
+            args.getString("positiveText")?.let { positiveText ->
+                binding.btnPositive.text = positiveText
+            }
+
+            args.getString("negativeText")?.let { negativeText ->
+                binding.btnNegative.text = negativeText
+            }
         }
     }
 

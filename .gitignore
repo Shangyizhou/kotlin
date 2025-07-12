@@ -13,3 +13,53 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# IDE相关的本地配置文件
+/.idea/gradle.xml
+/.idea/misc.xml
+/.idea/runConfigurations.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/compiler.xml
+/.idea/vcs.xml
+/.idea/migrations.xml
+/.idea/AndroidProjectSystem.xml
+
+# API密钥配置文件（包含敏感信息）
+app/src/main/java/com/example/kotlin/config/ApiConfig.kt
+
+# 签名文件
+*.jks
+*.keystore
+key.properties
+keystore.properties
+
+# 构建和缓存文件
+app/build/
+*/build/
+.gradle/
+build/
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# 操作系统相关文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 本地环境配置
+.env
+.env.local
+.idea/gradle.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/misc.xml
