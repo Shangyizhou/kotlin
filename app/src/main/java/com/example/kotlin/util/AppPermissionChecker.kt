@@ -1,9 +1,14 @@
 package com.example.kotlin.util
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -42,7 +47,7 @@ class AppPermissionChecker(private val fragment: Fragment) {
             }
             
             // 检查是否已经拥有所有权限
-            val deniedPermissions = PermissionManager.getDeniedPermissions(
+            val deniedPermissions = getDeniedPermissions(
                 fragment.requireContext(), 
                 requiredPermissions
             )
@@ -55,7 +60,7 @@ class AppPermissionChecker(private val fragment: Fragment) {
             
             // 检查是否需要显示权限说明
             val shouldShowRationale = deniedPermissions.any { permission ->
-                PermissionManager.shouldShowRequestPermissionRationale(
+                shouldShowRequestPermissionRationale(
                     fragment.requireActivity(), 
                     permission
                 )
@@ -76,6 +81,22 @@ class AppPermissionChecker(private val fragment: Fragment) {
     }
     
     /**
+     * 获取被拒绝的权限列表
+     */
+    private fun getDeniedPermissions(context: Context, permissions: Array<String>): List<String> {
+        return permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+        }
+    }
+    
+    /**
+     * 检查是否应该显示权限说明
+     */
+    private fun shouldShowRequestPermissionRationale(activity: android.app.Activity, permission: String): Boolean {
+        return ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+    }
+    
+    /**
      * 获取应用需要的危险权限
      * 根据你的应用功能调整这个列表
      */
@@ -83,7 +104,7 @@ class AppPermissionChecker(private val fragment: Fragment) {
         val permissions = mutableListOf<String>()
         
         // 示例：如果应用需要相机功能
-        // permissions.add(PermissionManager.Permissions.CAMERA)
+        // permissions.add(Manifest.permission.CAMERA)
         
         // 示例：如果应用需要访问存储
         // permissions.addAll(PermissionManager.getStoragePermissions())
@@ -92,8 +113,8 @@ class AppPermissionChecker(private val fragment: Fragment) {
         // permissions.addAll(PermissionManager.getLocationPermissions())
         
         // 示例：如果应用需要通知权限（Android 13+）
-        // if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-        //     permissions.add(PermissionManager.Permissions.POST_NOTIFICATIONS)
+        // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        //     permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         // }
         
         return permissions.toTypedArray()
@@ -115,7 +136,7 @@ class AppPermissionChecker(private val fragment: Fragment) {
         } else {
             // 检查是否有权限被永久拒绝
             val permanentlyDenied = deniedPermissions.filter { permission ->
-                !PermissionManager.shouldShowRequestPermissionRationale(
+                !shouldShowRequestPermissionRationale(
                     fragment.requireActivity(), 
                     permission
                 )
@@ -225,16 +246,16 @@ class AppPermissionChecker(private val fragment: Fragment) {
     private fun getPermissionDescription(permissions: List<String>): String {
         return permissions.joinToString("\n") { permission ->
             when (permission) {
-                PermissionManager.Companion.Permissions.CAMERA -> "• 相机权限 - 用于拍照和扫码"
-                PermissionManager.Companion.Permissions.RECORD_AUDIO -> "• 录音权限 - 用于语音功能"
-                PermissionManager.Companion.Permissions.ACCESS_FINE_LOCATION -> "• 位置权限 - 用于定位服务"
-                PermissionManager.Companion.Permissions.ACCESS_COARSE_LOCATION -> "• 位置权限 - 用于定位服务"
-                PermissionManager.Companion.Permissions.READ_EXTERNAL_STORAGE -> "• 存储权限 - 用于读取文件"
-                PermissionManager.Companion.Permissions.WRITE_EXTERNAL_STORAGE -> "• 存储权限 - 用于保存文件"
-                PermissionManager.Companion.Permissions.READ_MEDIA_IMAGES -> "• 图片权限 - 用于访问图片"
-                PermissionManager.Companion.Permissions.READ_MEDIA_VIDEO -> "• 视频权限 - 用于访问视频"
-                PermissionManager.Companion.Permissions.READ_MEDIA_AUDIO -> "• 音频权限 - 用于访问音频"
-                PermissionManager.Companion.Permissions.POST_NOTIFICATIONS -> "• 通知权限 - 用于推送消息"
+                Manifest.permission.CAMERA -> "• 相机权限 - 用于拍照和扫码"
+                Manifest.permission.RECORD_AUDIO -> "• 录音权限 - 用于语音功能"
+                Manifest.permission.ACCESS_FINE_LOCATION -> "• 位置权限 - 用于定位服务"
+                Manifest.permission.ACCESS_COARSE_LOCATION -> "• 位置权限 - 用于定位服务"
+                Manifest.permission.READ_EXTERNAL_STORAGE -> "• 存储权限 - 用于读取文件"
+                Manifest.permission.WRITE_EXTERNAL_STORAGE -> "• 存储权限 - 用于保存文件"
+                Manifest.permission.READ_MEDIA_IMAGES -> "• 图片权限 - 用于访问图片"
+                Manifest.permission.READ_MEDIA_VIDEO -> "• 视频权限 - 用于访问视频"
+                Manifest.permission.READ_MEDIA_AUDIO -> "• 音频权限 - 用于访问音频"
+                Manifest.permission.POST_NOTIFICATIONS -> "• 通知权限 - 用于推送消息"
                 else -> "• ${permission.substringAfterLast(".")}"
             }
         }
@@ -253,7 +274,7 @@ object NetworkUtils {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) 
             as android.net.ConnectivityManager
         
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val network = connectivityManager.activeNetwork
             val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
             networkCapabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true

@@ -79,4 +79,9 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    
+    // 图片选择和权限处理
+    implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }

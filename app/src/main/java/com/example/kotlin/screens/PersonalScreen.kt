@@ -1,5 +1,8 @@
 package com.example.kotlin.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,19 +20,50 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import com.example.kotlin.R
+import com.example.kotlin.util.PermissionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalScreen() {
     var showImagePickerDialog by remember { mutableStateOf(false) }
     var selectedImageRes by remember { mutableStateOf(R.drawable.profile) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    
+    // 权限状态
+    val hasPermission = remember { mutableStateOf(PermissionManager.hasImagePermission(context)) }
+    
+    // 权限申请启动器
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        hasPermission.value = allGranted
+        
+        if (allGranted) {
+            // 权限获取成功，打开图片选择器
+            showImagePickerDialog = true
+        }
+    }
+    
+    // 图片选择启动器
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            selectedImageUri = it
+            selectedImageRes = 0 // 清空默认图片
+        }
+    }
     
     Column(
         modifier = Modifier
@@ -39,7 +73,15 @@ fun PersonalScreen() {
         // 顶部头像区域
         ProfileHeader(
             imageRes = selectedImageRes,
-            onImageClick = { showImagePickerDialog = true }
+            imageUri = selectedImageUri,
+            onImageClick = {
+                if (hasPermission.value) {
+                    showImagePickerDialog = true
+                } else {
+                    // 申请权限
+                    permissionLauncher.launch(PermissionManager.getImagePermissions())
+                }
+            }
         )
         
         // 个人信息列表
@@ -55,7 +97,12 @@ fun PersonalScreen() {
             onDismiss = { showImagePickerDialog = false },
             onImageSelected = { imageRes ->
                 selectedImageRes = imageRes
+                selectedImageUri = null // 清空URI
                 showImagePickerDialog = false
+            },
+            onGallerySelected = {
+                showImagePickerDialog = false
+                imagePickerLauncher.launch("image/*")
             }
         )
     }
@@ -64,6 +111,7 @@ fun PersonalScreen() {
 @Composable
 fun ProfileHeader(
     imageRes: Int,
+    imageUri: Uri?,
     onImageClick: () -> Unit
 ) {
     Column(
@@ -81,12 +129,31 @@ fun ProfileHeader(
                 .background(Color(0xFFE0E0E0)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = imageRes),
-                contentDescription = "头像",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            if (imageUri != null) {
+                // 显示从相册选择的图片
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = "头像",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (imageRes != 0) {
+                // 显示默认图片
+                Image(
+                    painter = painterResource(id = imageRes),
+                    contentDescription = "头像",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // 显示占位符
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = "头像占位符",
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.Gray
+                )
+            }
             
             // 编辑图标
             Box(
@@ -122,7 +189,7 @@ fun ProfileHeader(
 fun PersonalInfoList() {
     val personalInfo = listOf(
         PersonalInfoItem("姓名", "张三", Icons.Default.Person),
-        PersonalInfoItem("出生日期", "1995年3月15日", Icons.Default.Person),
+        PersonalInfoItem("出生日期", "1995年3月15日", Icons.Default.Star),
         PersonalInfoItem("星座", "双鱼座", Icons.Default.Star),
         PersonalInfoItem("个性签名", "热爱生活，追求梦想", Icons.Default.Edit)
     )
@@ -277,15 +344,9 @@ fun SettingsRow(
 @Composable
 fun ImagePickerDialog(
     onDismiss: () -> Unit,
-    onImageSelected: (Int) -> Unit
+    onImageSelected: (Int) -> Unit,
+    onGallerySelected: () -> Unit
 ) {
-    val imageOptions = listOf(
-        R.drawable.profile,
-        R.drawable.chat,
-        R.drawable.news,
-        R.drawable.square
-    )
-    
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -304,10 +365,49 @@ fun ImagePickerDialog(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 
+                // 从相册选择按钮
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onGallerySelected() }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "相册",
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "从相册选择",
+                        fontSize = 16.sp,
+                        color = Color.Black
+                    )
+                }
+                
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                
+                // 默认头像选项
+                Text(
+                    text = "默认头像",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
+                    val imageOptions = listOf(
+                        R.drawable.profile,
+                        R.drawable.chat,
+                        R.drawable.news,
+                        R.drawable.square
+                    )
+                    
                     imageOptions.forEach { imageRes ->
                         Box(
                             modifier = Modifier
@@ -354,24 +454,3 @@ data class PersonalInfoItem(
 fun PersonalScreenPreview() {
     PersonalScreen()
 }
-//
-//@Preview(showBackground = true, name = "头像区域")
-//@Composable
-//fun ProfileHeaderPreview() {
-//    ProfileHeader(
-//        imageRes = R.drawable.profile,
-//        onImageClick = { println("点击头像") }
-//    )
-//}
-//
-//@Preview(showBackground = true, name = "个人信息列表")
-//@Composable
-//fun PersonalInfoListPreview() {
-//    PersonalInfoList()
-//}
-//
-//@Preview(showBackground = true, name = "设置区域")
-//@Composable
-//fun SettingsSectionPreview() {
-//    SettingsSection()
-//}
