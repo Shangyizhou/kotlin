@@ -1,13 +1,9 @@
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,7 +22,7 @@ import com.example.kotlin.data.NewsItem
 import com.example.kotlin.screens.ChatScreen
 import com.example.kotlin.screens.NewsScreen
 import com.example.kotlin.screens.NewsDetailScreen
-import com.example.kotlin.screens.ProfileScreen
+import com.example.kotlin.screens.PersonalScreen
 import com.example.kotlin.screens.SquareScreen
 import com.example.kotlin.state.AppState
 import com.example.kotlin.state.NavigationEvent
@@ -61,7 +57,7 @@ fun AppNavigation() {
     // 定义导航项数据
     val items = listOf(
         NavItem("chat", "Chat", R.drawable.chat),
-        NavItem("profile", "Profile", R.drawable.profile),
+        NavItem("personal", "Personal", R.drawable.profile),
         NavItem("square", "Square", R.drawable.square),
         NavItem("news", "News", R.drawable.news)
     )
@@ -108,7 +104,7 @@ fun AppNavigation() {
             modifier = Modifier.padding(padding)
         ) {
             composable("chat") { ChatScreen() }
-            composable("profile") { ProfileScreen() }
+            composable("personal") { PersonalScreen() }
             composable("square") { SquareScreen() }
             composable("news") { NewsScreen() }
             composable("news_detail/{newsId}") { backStackEntry ->
