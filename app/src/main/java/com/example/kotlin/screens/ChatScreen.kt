@@ -16,12 +16,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kotlin.data.ChatMessage
 import com.example.kotlin.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +81,19 @@ fun ChatScreen(
                 .fillMaxWidth()
         )
 
+        // 推荐问题气泡（在AI回复后显示，或聊天为空时显示初始问题）
+        if (!isLoading && (
+            messages.isEmpty() || 
+            (messages.isNotEmpty() && messages.last().isMe.not())
+        )) {
+            RecommendedQuestions(
+                isInitialQuestions = messages.isEmpty(),
+                onQuestionClick = { question ->
+                    viewModel.sendMessage(question)
+                }
+            )
+        }
+
         // 输入框区域
         ChatInput(
             text = inputText,
@@ -87,6 +103,97 @@ fun ChatScreen(
                 keyboardController?.hide()
                 viewModel.sendMessage(inputText) 
             }
+        )
+    }
+}
+
+@Composable
+fun RecommendedQuestions(
+    isInitialQuestions: Boolean = false,
+    onQuestionClick: (String) -> Unit
+) {
+    // 初始问题列表
+    val initialQuestions = remember {
+        listOf(
+            "你好，请介绍一下你自己",
+            "什么是人工智能？",
+            "如何学习编程？",
+            "推荐一些好书",
+            "今天天气怎么样？",
+            "帮我写一个简单的程序"
+        )
+    }
+    
+    // 后续问题列表
+    val followUpQuestions = remember {
+        listOf(
+            "请详细解释一下",
+            "能举个例子吗？",
+            "还有其他方法吗？",
+            "这个有什么优缺点？",
+            "如何应用到实际中？",
+            "可以推荐相关资源吗？",
+            "能总结一下要点吗？",
+            "有什么注意事项？",
+            "如何进一步学习？",
+            "还有其他问题吗？"
+        )
+    }
+    
+    // 根据状态选择问题列表
+    val questionPool = if (isInitialQuestions) initialQuestions else followUpQuestions
+    
+    // 随机选择3个问题
+    val currentQuestions = remember {
+        questionPool.shuffled().take(3)
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        // 问题气泡横向排列
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            currentQuestions.forEach { question ->
+                QuestionBubble(
+                    question = question,
+                    onClick = { onQuestionClick(question) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun QuestionBubble(
+    question: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2196F3)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Text(
+            text = question,
+            fontSize = 10.sp,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp)
         )
     }
 }
