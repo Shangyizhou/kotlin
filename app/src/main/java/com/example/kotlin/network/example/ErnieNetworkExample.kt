@@ -3,7 +3,7 @@ package com.example.kotlin.network.example
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kotlin.network.model.Message
-import com.example.kotlin.network.model.NetworkResult
+import com.example.kotlin.network.service.NetworkResult
 import com.example.kotlin.network.service.ErnieNetworkService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +54,7 @@ class ErnieNetworkExample : ViewModel() {
                         error = result.exception.message
                     )
                 }
-                is NetworkResult.Loading -> {
+                NetworkResult.Loading -> {
                     _uiState.value = _uiState.value.copy(isLoading = true)
                 }
             }
@@ -67,7 +67,7 @@ class ErnieNetworkExample : ViewModel() {
     fun sendConversation(messages: List<Message>) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            
+
             try {
                 // 先获取访问令牌
                 val tokenResult = networkService.getAccessToken(clientId, clientSecret)
@@ -94,7 +94,7 @@ class ErnieNetworkExample : ViewModel() {
                     is NetworkResult.Success -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            response = chatResult.data.result,
+                            response = chatResult.data.getActualResult(),
                             fullResponse = chatResult.data,
                             error = null
                         )
@@ -105,7 +105,7 @@ class ErnieNetworkExample : ViewModel() {
                             error = chatResult.exception.message
                         )
                     }
-                    is NetworkResult.Loading -> {
+                    NetworkResult.Loading -> {
                         _uiState.value = _uiState.value.copy(isLoading = true)
                     }
                 }

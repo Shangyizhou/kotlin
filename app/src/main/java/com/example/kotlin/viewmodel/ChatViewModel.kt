@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.kotlin.config.ApiConfig
 import com.example.kotlin.data.ChatMessage
 import com.example.kotlin.network.model.Message
-import com.example.kotlin.network.model.NetworkResult
+import com.example.kotlin.network.service.NetworkResult
 import com.example.kotlin.network.service.ErnieNetworkService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -136,7 +136,7 @@ class ChatViewModel : ViewModel() {
                         addMessageToUI(errorMessage)
                     }
                     
-                    is NetworkResult.Loading -> {
+                    NetworkResult.Loading -> {
                         // 已经在处理中
                     }
                 }
@@ -165,7 +165,7 @@ class ChatViewModel : ViewModel() {
         return when (tokenResult) {
             is NetworkResult.Success -> tokenResult.data
             is NetworkResult.Error -> throw Exception("获取访问令牌失败: ${tokenResult.exception.message}")
-            is NetworkResult.Loading -> throw Exception("正在获取访问令牌...")
+            NetworkResult.Loading -> throw Exception("正在获取访问令牌...")
         }
     }
     

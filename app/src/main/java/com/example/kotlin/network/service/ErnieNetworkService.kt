@@ -165,8 +165,8 @@ class ErnieNetworkService {
                 is NetworkResult.Error -> {
                     NetworkResult.Error(chatResult.exception)
                 }
-                is NetworkResult.Loading -> {
-                    NetworkResult.Loading()
+                NetworkResult.Loading -> {
+                    NetworkResult.Loading
                 }
             }
         } catch (e: Exception) {

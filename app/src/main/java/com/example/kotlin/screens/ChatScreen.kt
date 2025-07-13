@@ -1,4 +1,5 @@
-import androidx.compose.foundation.background
+package com.example.kotlin.screens
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState

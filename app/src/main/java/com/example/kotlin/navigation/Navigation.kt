@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
@@ -19,9 +22,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.kotlin.R
+import com.example.kotlin.data.NewsItem
+import com.example.kotlin.screens.ChatScreen
 import com.example.kotlin.screens.NewsScreen
+import com.example.kotlin.screens.NewsDetailScreen
 import com.example.kotlin.screens.ProfileScreen
 import com.example.kotlin.screens.SquareScreen
+import com.example.kotlin.state.AppState
+import com.example.kotlin.state.NavigationEvent
 
 // 导航项数据类
 data class NavItem(
@@ -33,6 +41,22 @@ data class NavItem(
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    
+    // 处理导航事件
+    LaunchedEffect(AppState.navigationEvent) {
+        AppState.navigationEvent?.let { event ->
+            when (event) {
+                is NavigationEvent.NavigateToNewsDetail -> {
+                    navController.navigate("news_detail/${event.newsItem.id}")
+                }
+                NavigationEvent.NavigateBack -> {
+                    navController.popBackStack()
+                }
+            }
+            // 清除事件
+            AppState.clearNavigationEvent()
+        }
+    }
 
     // 定义导航项数据
     val items = listOf(
@@ -87,6 +111,22 @@ fun AppNavigation() {
             composable("profile") { ProfileScreen() }
             composable("square") { SquareScreen() }
             composable("news") { NewsScreen() }
+            composable("news_detail/{newsId}") { backStackEntry ->
+                val newsId = backStackEntry.arguments?.getString("newsId") ?: ""
+                
+                // 从缓存中获取新闻数据
+                val newsItem = AppState.getCachedNewsData(newsId) ?: NewsItem(
+                    id = newsId,
+                    title = "新闻详情",
+                    description = "",
+                    source = "",
+                    imageUrl = "",
+                    articleUrl = "https://www.example.com", // 临时URL
+                    publishTime = ""
+                )
+                
+                NewsDetailScreen(newsItem = newsItem)
+            }
         }
     }
 }
