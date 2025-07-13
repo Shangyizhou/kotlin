@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -187,6 +188,7 @@ fun QuestionBubble(
         Text(
             text = question,
             fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
             color = Color.White,
             textAlign = TextAlign.Center,
             maxLines = 1,
@@ -364,13 +366,13 @@ fun ChatInput(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(8.dp),
+            .padding(4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
@@ -394,7 +396,8 @@ fun ChatInput(
                     disabledIndicatorColor = Color.Transparent
                 ),
                 enabled = !isLoading,
-                maxLines = 3
+                maxLines = 1,
+                singleLine = true
             )
 
             Button(
@@ -402,7 +405,8 @@ fun ChatInput(
                 enabled = text.isNotBlank() && !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2196F3)
-                )
+                ),
+                modifier = Modifier.height(40.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -416,4 +420,12 @@ fun ChatInput(
             }
         }
     }
+}
+
+// ==================== PREVIEW 部分 ====================
+
+@Preview(showBackground = true, name = "聊天页面 - 空状态")
+@Composable
+fun ChatScreenEmptyPreview() {
+    ChatScreen()
 }
