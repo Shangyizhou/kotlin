@@ -1,9 +1,13 @@
 package com.example.kotlin.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kotlin.config.ApiConfig
 import com.example.kotlin.data.ChatMessage
+import com.example.kotlin.data.ChatMessageEntity
+import com.example.kotlin.data.ChatRepository
+import com.example.kotlin.data.AppDatabase
 import com.example.kotlin.network.model.Message
 import com.example.kotlin.network.service.NetworkResult
 import com.example.kotlin.network.service.ErnieNetworkService
@@ -14,11 +18,15 @@ import kotlinx.coroutines.launch
 
 /**
  * 聊天页面ViewModel
- * 管理聊天消息和ERNIE API交互
+ * 管理聊天消息和ERNIE API交互，支持本地数据库存储
  */
-class ChatViewModel : ViewModel() {
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
     
     private val networkService = ErnieNetworkService.getInstance()
+    
+    // 数据库相关
+    private val database = AppDatabase.getDatabase(application)
+    private val repository = ChatRepository(database.chatMessageDao())
     
     // 从配置文件获取百度API凭据
     private val clientId = ApiConfig.BAIDU_API_KEY
@@ -44,12 +52,56 @@ class ChatViewModel : ViewModel() {
     private val conversationHistory = mutableListOf<Message>()
     
     init {
-        // 直接使用固定的BCEv3 token，跳过API配置检查
         // 添加系统提示消息
         addSystemMessage("你是一个有用的AI助手，请用中文回答问题。")
         
-        // 添加欢迎消息
-        addWelcomeMessage()
+        // 加载历史聊天记录
+        loadChatHistory()
+    }
+    
+    /**
+     * 加载聊天历史记录
+     */
+    private fun loadChatHistory() {
+        viewModelScope.launch {
+            repository.getMessagesBySession("default").collect { entities ->
+                val chatMessages = entities.map { entity ->
+                    ChatMessage(
+                        id = entity.id.toString(),
+                        content = entity.content,
+                        isMe = entity.isMe,
+                        timestamp = entity.timestamp
+                    )
+                }
+                _messages.value = chatMessages
+                
+                // 重建对话历史
+                conversationHistory.clear()
+                conversationHistory.add(Message("system", "你是一个有用的AI助手，请用中文回答问题。"))
+                chatMessages.forEach { message ->
+                    val role = if (message.isMe) "user" else "assistant"
+                    conversationHistory.add(Message(role, message.content))
+                }
+                
+                // 如果没有历史记录，添加欢迎消息
+                if (chatMessages.isEmpty()) {
+                    addWelcomeMessage()
+                }
+            }
+        }
+    }
+    
+    /**
+     * 保存消息到数据库
+     */
+    private suspend fun saveMessageToDatabase(message: ChatMessage) {
+        val entity = ChatMessageEntity(
+            content = message.content,
+            isMe = message.isMe,
+            timestamp = message.timestamp,
+            sessionId = "default"
+        )
+        repository.insertMessage(entity)
     }
     
     /**
@@ -65,24 +117,6 @@ class ChatViewModel : ViewModel() {
     fun sendMessage(userMessage: String) {
         if (userMessage.isBlank() || _isLoading.value) return
         
-        // 注释掉API配置检查，现在使用固定的BCEv3 token
-        /*
-        if (!ApiConfig.isApiConfigured()) {
-            _errorMessage.value = "请先配置百度API密钥"
-            
-            val errorMessage = ChatMessage(
-                id = generateMessageId(),
-                content = "请在 app/src/main/java/com/example/kotlin/config/ApiConfig.kt 文件中配置你的百度API密钥后重试。",
-                isMe = false
-            )
-            addMessageToUI(errorMessage)
-            
-            // 清空输入框
-            _inputText.value = ""
-            return
-        }
-        */
-        
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -95,6 +129,9 @@ class ChatViewModel : ViewModel() {
                     isMe = true
                 )
                 addMessageToUI(userChatMessage)
+                
+                // 保存用户消息到数据库
+                saveMessageToDatabase(userChatMessage)
                 
                 // 添加用户消息到对话历史
                 conversationHistory.add(Message("user", userMessage))
@@ -120,6 +157,9 @@ class ChatViewModel : ViewModel() {
                         )
                         addMessageToUI(aiChatMessage)
                         
+                        // 保存AI回复到数据库
+                        saveMessageToDatabase(aiChatMessage)
+                        
                         // 添加AI回复到对话历史
                         conversationHistory.add(Message("assistant", aiResponse))
                     }
@@ -134,6 +174,9 @@ class ChatViewModel : ViewModel() {
                             isMe = false
                         )
                         addMessageToUI(errorMessage)
+                        
+                        // 保存错误消息到数据库
+                        saveMessageToDatabase(errorMessage)
                     }
                     
                     NetworkResult.Loading -> {
@@ -150,6 +193,9 @@ class ChatViewModel : ViewModel() {
                     isMe = false
                 )
                 addMessageToUI(errorMessage)
+                
+                // 保存错误消息到数据库
+                saveMessageToDatabase(errorMessage)
                 
             } finally {
                 _isLoading.value = false
@@ -186,18 +232,11 @@ class ChatViewModel : ViewModel() {
             isMe = false
         )
         addMessageToUI(welcomeMessage)
-    }
-    
-    /**
-     * 添加配置提示消息
-     */
-    private fun addConfigurationMessage() {
-        val configMessage = ChatMessage(
-            id = generateMessageId(),
-            content = "⚠️ 百度API密钥未配置\n\n请按照以下步骤配置：\n\n1. 访问 https://console.bce.baidu.com/\n2. 创建千帆大模型应用\n3. 获取API Key和Secret Key\n4. 在 ApiConfig.kt 文件中配置密钥\n5. 重新启动应用\n\n✅ 新版API支持：\n• 千帆HTTP接口 (qianfan.baidubce.com)\n• ERNIE-4.0-8K模型\n• Bearer Token认证\n\n配置完成后即可开始聊天！",
-            isMe = false
-        )
-        addMessageToUI(configMessage)
+        
+        // 保存欢迎消息到数据库
+        viewModelScope.launch {
+            saveMessageToDatabase(welcomeMessage)
+        }
     }
     
     /**
@@ -225,12 +264,18 @@ class ChatViewModel : ViewModel() {
      * 清空聊天记录
      */
     fun clearChat() {
-        _messages.value = emptyList()
-        conversationHistory.clear()
-        
-        // 重新添加系统消息和欢迎消息
-        addSystemMessage("你是一个有用的AI助手，请用中文回答问题。")
-        addWelcomeMessage()
+        viewModelScope.launch {
+            // 清空数据库
+            repository.deleteMessagesBySession("default")
+            
+            // 清空UI
+            _messages.value = emptyList()
+            conversationHistory.clear()
+            
+            // 重新添加系统消息和欢迎消息
+            addSystemMessage("你是一个有用的AI助手，请用中文回答问题。")
+            addWelcomeMessage()
+        }
     }
     
     /**
