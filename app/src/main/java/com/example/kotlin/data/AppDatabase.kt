@@ -9,13 +9,14 @@ import androidx.room.RoomDatabase
  * 应用数据库
  */
 @Database(
-    entities = [ChatMessageEntity::class],
-    version = 1,
+    entities = [ChatMessageEntity::class, UserProfileEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun userProfileDao(): UserProfileDao
     
     companion object {
         @Volatile

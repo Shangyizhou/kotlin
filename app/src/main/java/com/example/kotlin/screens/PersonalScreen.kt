@@ -27,17 +27,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.kotlin.R
 import com.example.kotlin.util.PermissionManager
+import com.example.kotlin.viewmodel.UserProfileViewModel
+import com.example.kotlin.viewmodel.UserProfileViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalScreen() {
-    var showImagePickerDialog by remember { mutableStateOf(false) }
-    var selectedImageRes by remember { mutableStateOf(R.drawable.profile) }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
+    val userProfileViewModel: UserProfileViewModel = viewModel(
+        factory = UserProfileViewModelFactory(context)
+    )
+    
+    var showImagePickerDialog by remember { mutableStateOf(false) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     
     // 权限状态
     val hasPermission = remember { mutableStateOf(PermissionManager.hasImagePermission(context)) }
@@ -61,9 +67,16 @@ fun PersonalScreen() {
     ) { uri ->
         uri?.let {
             selectedImageUri = it
-            selectedImageRes = 0 // 清空默认图片
+            // 保存头像URL到数据库
+            val avatarUrl = it.toString()
+            android.util.Log.d("PersonalScreen", "Selected image URI: $avatarUrl")
+            userProfileViewModel.updateAvatarUrl(avatarUrl)
         }
     }
+    
+    // 观察用户信息
+    val userProfile by userProfileViewModel.userProfile.collectAsState()
+    val isLoading by userProfileViewModel.isLoading.collectAsState()
     
     Column(
         modifier = Modifier
@@ -72,8 +85,7 @@ fun PersonalScreen() {
     ) {
         // 顶部头像区域
         ProfileHeader(
-            imageRes = selectedImageRes,
-            imageUri = selectedImageUri,
+            userProfile = userProfile,
             onImageClick = {
                 if (hasPermission.value) {
                     showImagePickerDialog = true
@@ -85,7 +97,7 @@ fun PersonalScreen() {
         )
         
         // 个人信息列表
-        PersonalInfoList()
+        PersonalInfoList(userProfile = userProfile)
         
         // 设置选项
         SettingsSection()
@@ -96,8 +108,7 @@ fun PersonalScreen() {
         ImagePickerDialog(
             onDismiss = { showImagePickerDialog = false },
             onImageSelected = { imageRes ->
-                selectedImageRes = imageRes
-                selectedImageUri = null // 清空URI
+                // 这里可以处理默认图片选择
                 showImagePickerDialog = false
             },
             onGallerySelected = {
@@ -110,8 +121,7 @@ fun PersonalScreen() {
 
 @Composable
 fun ProfileHeader(
-    imageRes: Int,
-    imageUri: Uri?,
+    userProfile: com.example.kotlin.data.UserProfileEntity?,
     onImageClick: () -> Unit
 ) {
     Column(
@@ -129,29 +139,22 @@ fun ProfileHeader(
                 .background(Color(0xFFE0E0E0)),
             contentAlignment = Alignment.Center
         ) {
-            if (imageUri != null) {
-                // 显示从相册选择的图片
+            android.util.Log.d("ProfileHeader", "Avatar URL: ${userProfile?.avatarUrl}")
+            if (userProfile?.avatarUrl != null) {
+                // 显示从数据库加载的头像
                 AsyncImage(
-                    model = imageUri,
-                    contentDescription = "头像",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else if (imageRes != 0) {
-                // 显示默认图片
-                Image(
-                    painter = painterResource(id = imageRes),
+                    model = userProfile.avatarUrl,
                     contentDescription = "头像",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // 显示占位符
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "头像占位符",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.Gray
+                // 显示默认头像
+                Image(
+                    painter = painterResource(id = R.drawable.profile),
+                    contentDescription = "头像",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
             
@@ -177,7 +180,7 @@ fun ProfileHeader(
         
         // 用户名
         Text(
-            text = "张三",
+            text = userProfile?.name ?: "张三",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
@@ -186,12 +189,12 @@ fun ProfileHeader(
 }
 
 @Composable
-fun PersonalInfoList() {
+fun PersonalInfoList(userProfile: com.example.kotlin.data.UserProfileEntity?) {
     val personalInfo = listOf(
-        PersonalInfoItem("姓名", "张三", Icons.Default.Person),
-        PersonalInfoItem("出生日期", "1995年3月15日", Icons.Default.Star),
-        PersonalInfoItem("星座", "双鱼座", Icons.Default.Star),
-        PersonalInfoItem("个性签名", "热爱生活，追求梦想", Icons.Default.Edit)
+        PersonalInfoItem("姓名", userProfile?.name ?: "张三", Icons.Default.Person),
+        PersonalInfoItem("出生日期", userProfile?.birthDate ?: "1995年3月15日", Icons.Default.Star),
+        PersonalInfoItem("星座", userProfile?.zodiac ?: "双鱼座", Icons.Default.Star),
+        PersonalInfoItem("个性签名", userProfile?.signature ?: "热爱生活，追求梦想", Icons.Default.Edit)
     )
     
     Card(
