@@ -34,6 +34,8 @@ import com.example.kotlin.util.PermissionManager
 import com.example.kotlin.viewmodel.UserProfileViewModel
 import com.example.kotlin.viewmodel.UserProfileViewModelFactory
 import android.content.Intent
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,29 +81,36 @@ fun PersonalScreen() {
     val userProfile by userProfileViewModel.userProfile.collectAsState()
     val isLoading by userProfileViewModel.isLoading.collectAsState()
     
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(Color(0xFFF5F5F5)),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        // 顶部头像区域
-        ProfileHeader(
-            userProfile = userProfile,
-            onImageClick = {
-                if (hasPermission.value) {
-                    showImagePickerDialog = true
-                } else {
-                    // 申请权限
-                    permissionLauncher.launch(PermissionManager.getImagePermissions())
+        item {
+            // 顶部头像区域
+            ProfileHeader(
+                userProfile = userProfile,
+                onImageClick = {
+                    if (hasPermission.value) {
+                        showImagePickerDialog = true
+                    } else {
+                        // 申请权限
+                        permissionLauncher.launch(PermissionManager.getImagePermissions())
+                    }
                 }
-            }
-        )
+            )
+        }
         
-        // 个人信息列表
-        PersonalInfoList(userProfile = userProfile)
+        item {
+            // 个人信息列表
+            PersonalInfoList(userProfile = userProfile)
+        }
         
-        // 设置选项
-        SettingsSection()
+        item {
+            // 设置选项
+            SettingsSection()
+        }
     }
     
     // 图片选择对话框
@@ -205,9 +214,8 @@ fun PersonalInfoList(userProfile: com.example.kotlin.data.UserProfileEntity?) {
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        LazyColumn {
-            items(personalInfo.size) { index ->
-                val item = personalInfo[index]
+        Column {
+            personalInfo.forEachIndexed { index, item ->
                 PersonalInfoRow(
                     item = item,
                     isLast = index == personalInfo.size - 1
