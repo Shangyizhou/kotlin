@@ -33,6 +33,7 @@ import com.example.kotlin.R
 import com.example.kotlin.util.PermissionManager
 import com.example.kotlin.viewmodel.UserProfileViewModel
 import com.example.kotlin.viewmodel.UserProfileViewModelFactory
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -275,6 +276,7 @@ fun PersonalInfoRow(
 
 @Composable
 fun SettingsSection() {
+    val context = LocalContext.current
     Spacer(modifier = Modifier.height(24.dp))
     
     Card(
@@ -290,6 +292,27 @@ fun SettingsSection() {
                 title = "设置",
                 subtitle = "应用设置和偏好",
                 onClick = { /* TODO: 跳转到设置页面 */ }
+            )
+            
+            Divider(
+                modifier = Modifier.padding(start = 56.dp),
+                color = Color(0xFFE0E0E0),
+                thickness = 1.dp
+            )
+            
+            SettingsRow(
+                icon = Icons.Default.Share,
+                title = "分享APP",
+                subtitle = "推荐给朋友",
+                onClick = {
+                    // 分享APP
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "推荐一个好用的AI聊天APP")
+                        putExtra(Intent.EXTRA_TEXT, "我正在使用一个很棒的AI聊天APP，快来试试吧！\n下载地址：https://www.example.com")
+                    }
+                    context.startActivity(Intent.createChooser(intent, "分享APP"))
+                }
             )
         }
     }
