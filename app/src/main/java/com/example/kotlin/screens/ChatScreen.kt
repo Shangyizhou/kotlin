@@ -1,5 +1,8 @@
 package com.example.kotlin.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -7,12 +10,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -21,11 +24,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kotlin.data.ChatMessage
+import com.example.kotlin.data.ChatSessionEntity
 import com.example.kotlin.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +44,11 @@ fun ChatScreen(
     val inputText by viewModel.inputText.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+    val currentSessionId by viewModel.currentSessionId.collectAsState()
+    
+    // 侧边栏状态
+    var showSidebar by remember { mutableStateOf(false) }
     
     // 键盘控制器
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -59,52 +71,246 @@ fun ChatScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp)
-    ) {
-        // 顶部状态栏
-        ChatTopBar(
-            isLoading = isLoading,
-            errorMessage = errorMessage,
-            onClearChat = { viewModel.clearChat() },
-            onRetry = { viewModel.retryLastMessage() },
-            onClearError = { viewModel.clearError() }
-        )
-        
-        // 消息列表区域
-        MessageList(
-            messages = messages,
-            listState = listState,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        )
+                .fillMaxSize()
+                .padding(8.dp)
+        ) {
+            // 顶部状态栏
+            ChatTopBar(
+                onMenuClick = { showSidebar = true },
+                onNewChat = { viewModel.createNewSession() },
+                currentSession = sessions.find { it.sessionId == currentSessionId }
+            )
+            
+            // 消息列表区域
+            MessageList(
+                messages = messages,
+                listState = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            )
 
-        // 推荐问题气泡（在AI回复后显示，或聊天为空时显示初始问题）
-        if (!isLoading && (
-            messages.isEmpty() || 
-            (messages.isNotEmpty() && messages.last().isMe.not())
-        )) {
-            RecommendedQuestions(
-                isInitialQuestions = messages.isEmpty(),
-                onQuestionClick = { question ->
-                    viewModel.sendMessage(question)
+            // 推荐问题气泡（在AI回复后显示，或聊天为空时显示初始问题）
+            if (!isLoading && (
+                messages.isEmpty() || 
+                (messages.isNotEmpty() && messages.last().isMe.not())
+            )) {
+                RecommendedQuestions(
+                    isInitialQuestions = messages.isEmpty(),
+                    onQuestionClick = { question ->
+                        viewModel.sendMessage(question)
+                    }
+                )
+            }
+
+            // 输入框区域
+            ChatInput(
+                text = inputText,
+                isLoading = isLoading,
+                onTextChange = viewModel::updateInputText,
+                onSend = { 
+                    keyboardController?.hide()
+                    viewModel.sendMessage(inputText) 
                 }
             )
         }
+        
+        // 侧边栏
+        if (showSidebar) {
+            ChatSidebar(
+                sessions = sessions,
+                currentSessionId = currentSessionId,
+                onSessionClick = { sessionId ->
+                    viewModel.switchToSession(sessionId)
+                    showSidebar = false
+                },
+                onDeleteSession = { sessionId ->
+                    viewModel.deleteSession(sessionId)
+                },
+                onDismiss = { showSidebar = false }
+            )
+        }
+    }
+}
 
-        // 输入框区域
-        ChatInput(
-            text = inputText,
-            isLoading = isLoading,
-            onTextChange = viewModel::updateInputText,
-            onSend = { 
-                keyboardController?.hide()
-                viewModel.sendMessage(inputText) 
-            }
+@Composable
+fun ChatTopBar(
+    onMenuClick: () -> Unit,
+    onNewChat: () -> Unit,
+    currentSession: ChatSessionEntity?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 左侧菜单按钮
+        IconButton(onClick = onMenuClick) {
+            Icon(
+                Icons.Default.Menu,
+                contentDescription = "历史记录",
+                tint = Color(0xFF2196F3)
+            )
+        }
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // 中间标题
+        Text(
+            text = currentSession?.title ?: "AI聊天机器人",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // 右侧新建聊天按钮
+        IconButton(onClick = onNewChat) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "新建聊天",
+                tint = Color(0xFF2196F3)
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatSidebar(
+    sessions: List<ChatSessionEntity>,
+    currentSessionId: String,
+    onSessionClick: (String) -> Unit,
+    onDeleteSession: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 背景遮罩
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.3f))
+                .clickable { onDismiss() }
+        )
+        
+        // 侧边栏内容
+        Card(
+            modifier = Modifier
+                .width(280.dp)
+                .fillMaxHeight()
+                .align(Alignment.CenterStart),
+            shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // 标题
+                Text(
+                    text = "聊天记录",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                // 会话列表
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(sessions) { session ->
+                        SessionItem(
+                            session = session,
+                            isSelected = session.sessionId == currentSessionId,
+                            onClick = { onSessionClick(session.sessionId) },
+                            onDelete = { onDeleteSession(session.sessionId) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SessionItem(
+    session: ChatSessionEntity,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) Color(0xFFE3F2FD) else Color(0xFFF5F5F5)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = session.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                if (session.lastMessage.isNotEmpty()) {
+                    Text(
+                        text = session.lastMessage,
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                
+                Text(
+                    text = dateFormat.format(Date(session.lastMessageTime)),
+                    fontSize = 10.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            
+            // 删除按钮
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "删除",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 
@@ -171,6 +377,27 @@ fun RecommendedQuestions(
 }
 
 @Composable
+fun MessageList(
+    messages: List<ChatMessage>,
+    listState: LazyListState,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        state = listState,
+        modifier = modifier,
+        reverseLayout = true,
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        items(messages.reversed()) { message ->
+            ChatBubble(
+                message = message,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun QuestionBubble(
     question: String,
     onClick: () -> Unit,
@@ -197,116 +424,6 @@ fun QuestionBubble(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 6.dp)
         )
-    }
-}
-
-@Composable
-fun ChatTopBar(
-    isLoading: Boolean,
-    errorMessage: String?,
-    onClearChat: () -> Unit,
-    onRetry: () -> Unit,
-    onClearError: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF5F5F5)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "AI助手聊天",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                when {
-                    isLoading -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(12.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "AI正在思考中...",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-                    errorMessage != null -> {
-                        Text(
-                            text = "连接错误",
-                            fontSize = 12.sp,
-                            color = Color.Red
-                        )
-                    }
-                    else -> {
-                        Text(
-                            text = "在线",
-                            fontSize = 12.sp,
-                            color = Color(0xFF4CAF50)
-                        )
-                    }
-                }
-            }
-            
-            Row {
-                if (errorMessage != null) {
-                    IconButton(onClick = {
-                        onClearError()
-                        onRetry()
-                    }) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "重试",
-                            tint = Color(0xFF2196F3)
-                        )
-                    }
-                }
-                
-                IconButton(onClick = onClearChat) {
-                    Icon(
-                        Icons.Default.Clear,
-                        contentDescription = "清空聊天",
-                        tint = Color.Gray
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MessageList(
-    messages: List<ChatMessage>,
-    listState: LazyListState,
-    modifier: Modifier = Modifier
-) {
-    LazyColumn(
-        modifier = modifier,
-        state = listState,
-        reverseLayout = true // 新消息从底部出现
-    ) {
-        items(messages.reversed()) { message ->
-            ChatBubble(
-                message = message,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            )
-        }
     }
 }
 

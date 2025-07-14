@@ -7,6 +7,8 @@ import com.example.kotlin.config.ApiConfig
 import com.example.kotlin.data.ChatMessage
 import com.example.kotlin.data.ChatMessageEntity
 import com.example.kotlin.data.ChatRepository
+import com.example.kotlin.data.ChatSessionEntity
+import com.example.kotlin.data.ChatSessionRepository
 import com.example.kotlin.data.AppDatabase
 import com.example.kotlin.network.model.Message
 import com.example.kotlin.network.service.NetworkResult
@@ -15,10 +17,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * 聊天页面ViewModel
- * 管理聊天消息和ERNIE API交互，支持本地数据库存储
+ * 管理聊天消息和ERNIE API交互，支持本地数据库存储和多会话管理
  */
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     
@@ -27,14 +30,23 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     // 数据库相关
     private val database = AppDatabase.getDatabase(application)
     private val repository = ChatRepository(database.chatMessageDao())
+    private val sessionRepository = ChatSessionRepository(database.chatSessionDao())
     
     // 从配置文件获取百度API凭据
     private val clientId = ApiConfig.BAIDU_API_KEY
     private val clientSecret = ApiConfig.BAIDU_SECRET_KEY
     
+    // 当前会话ID
+    private val _currentSessionId = MutableStateFlow<String>("default")
+    val currentSessionId: StateFlow<String> = _currentSessionId.asStateFlow()
+    
     // 聊天消息列表
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+    
+    // 会话列表
+    private val _sessions = MutableStateFlow<List<ChatSessionEntity>>(emptyList())
+    val sessions: StateFlow<List<ChatSessionEntity>> = _sessions.asStateFlow()
     
     // 输入框文本
     private val _inputText = MutableStateFlow("")
@@ -52,19 +64,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val conversationHistory = mutableListOf<Message>()
     
     init {
-        // 添加系统提示消息
-        addSystemMessage("你是一个有用的AI助手，请用中文回答问题。")
+        // 加载会话列表
+        loadSessions()
         
-        // 加载历史聊天记录
-        loadChatHistory()
+        // 加载默认会话
+        loadChatHistory("default")
     }
     
     /**
-     * 加载聊天历史记录
+     * 加载会话列表
      */
-    private fun loadChatHistory() {
+    private fun loadSessions() {
         viewModelScope.launch {
-            repository.getMessagesBySession("default").collect { entities ->
+            sessionRepository.getAllSessions().collect { sessions ->
+                _sessions.value = sessions
+            }
+        }
+    }
+    
+    /**
+     * 加载指定会话的聊天历史记录
+     */
+    private fun loadChatHistory(sessionId: String) {
+        viewModelScope.launch {
+            _currentSessionId.value = sessionId
+            
+            repository.getMessagesBySession(sessionId).collect { entities ->
                 val chatMessages = entities.map { entity ->
                     ChatMessage(
                         id = entity.id.toString(),
@@ -92,6 +117,40 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
+     * 切换到指定会话
+     */
+    fun switchToSession(sessionId: String) {
+        loadChatHistory(sessionId)
+    }
+    
+    /**
+     * 创建新会话
+     */
+    fun createNewSession() {
+        viewModelScope.launch {
+            val newSessionId = UUID.randomUUID().toString()
+            val session = sessionRepository.createNewSession(newSessionId, "新对话")
+            
+            // 切换到新会话
+            loadChatHistory(newSessionId)
+        }
+    }
+    
+    /**
+     * 删除会话
+     */
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            sessionRepository.deleteSession(sessionId)
+            
+            // 如果删除的是当前会话，切换到默认会话
+            if (sessionId == _currentSessionId.value) {
+                loadChatHistory("default")
+            }
+        }
+    }
+    
+    /**
      * 保存消息到数据库
      */
     private suspend fun saveMessageToDatabase(message: ChatMessage) {
@@ -99,9 +158,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             content = message.content,
             isMe = message.isMe,
             timestamp = message.timestamp,
-            sessionId = "default"
+            sessionId = _currentSessionId.value
         )
         repository.insertMessage(entity)
+        
+        // 更新会话的最后消息信息
+        if (message.isMe) {
+            val title = if (message.content.length > 20) {
+                message.content.substring(0, 20) + "..."
+            } else {
+                message.content
+            }
+            sessionRepository.updateSessionTitle(_currentSessionId.value, title)
+        }
+        sessionRepository.updateLastMessage(_currentSessionId.value, message.content, message.timestamp)
     }
     
     /**
@@ -216,7 +286,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * 添加系统消息到对话历史
+     * 添加系统消息
      */
     private fun addSystemMessage(content: String) {
         conversationHistory.add(Message("system", content))
@@ -225,32 +295,30 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 添加欢迎消息
      */
-    private fun addWelcomeMessage() {
+    private suspend fun addWelcomeMessage() {
         val welcomeMessage = ChatMessage(
             id = generateMessageId(),
-            content = "您好！我是AI助手，很高兴为您服务。请问有什么可以帮助您的吗？",
+            content = "你好！我是AI聊天机器人，有什么可以帮助你的吗？",
             isMe = false
         )
         addMessageToUI(welcomeMessage)
-        
-        // 保存欢迎消息到数据库
-        viewModelScope.launch {
-            saveMessageToDatabase(welcomeMessage)
-        }
+        saveMessageToDatabase(welcomeMessage)
     }
     
     /**
-     * 添加消息到UI列表
+     * 添加消息到UI
      */
     private fun addMessageToUI(message: ChatMessage) {
-        _messages.value = _messages.value + message
+        val currentMessages = _messages.value.toMutableList()
+        currentMessages.add(message)
+        _messages.value = currentMessages
     }
     
     /**
      * 生成消息ID
      */
     private fun generateMessageId(): String {
-        return "msg_${System.currentTimeMillis()}_${(1000..9999).random()}"
+        return System.currentTimeMillis().toString()
     }
     
     /**
@@ -266,7 +334,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun clearChat() {
         viewModelScope.launch {
             // 清空数据库
-            repository.deleteMessagesBySession("default")
+            repository.deleteMessagesBySession(_currentSessionId.value)
             
             // 清空UI
             _messages.value = emptyList()
