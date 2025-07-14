@@ -57,9 +57,9 @@ fun AppNavigation() {
     // 定义导航项数据
     val items = listOf(
         NavItem("chat", "Chat", R.drawable.chat),
-        NavItem("personal", "Personal", R.drawable.profile),
+        NavItem("news", "News", R.drawable.news),
         NavItem("square", "Square", R.drawable.square),
-        NavItem("news", "News", R.drawable.news)
+        NavItem("personal", "Personal", R.drawable.profile)
     )
 
     Scaffold(
@@ -104,9 +104,9 @@ fun AppNavigation() {
             modifier = Modifier.padding(padding)
         ) {
             composable("chat") { ChatScreen() }
-            composable("personal") { PersonalScreen() }
             composable("square") { SquareScreen() }
             composable("news") { NewsScreen() }
+            composable("personal") { PersonalScreen() }
             composable("news_detail/{newsId}") { backStackEntry ->
                 val newsId = backStackEntry.arguments?.getString("newsId") ?: ""
                 
