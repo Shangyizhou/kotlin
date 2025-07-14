@@ -36,6 +36,7 @@ import com.example.kotlin.viewmodel.UserProfileViewModelFactory
 import android.content.Intent
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +48,8 @@ fun PersonalScreen() {
     
     var showImagePickerDialog by remember { mutableStateOf(false) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editingItem by remember { mutableStateOf<PersonalInfoItem?>(null) }
     
     // 权限状态
     val hasPermission = remember { mutableStateOf(PermissionManager.hasImagePermission(context)) }
@@ -104,7 +107,13 @@ fun PersonalScreen() {
         
         item {
             // 个人信息列表
-            PersonalInfoList(userProfile = userProfile)
+            PersonalInfoList(
+                userProfile = userProfile,
+                onEditClick = { item ->
+                    editingItem = item
+                    showEditDialog = true
+                }
+            )
         }
         
         item {
@@ -124,6 +133,43 @@ fun PersonalScreen() {
             onGallerySelected = {
                 showImagePickerDialog = false
                 imagePickerLauncher.launch("image/*")
+            }
+        )
+    }
+    
+    // 编辑对话框
+    if (showEditDialog && editingItem != null) {
+        EditInfoDialog(
+            item = editingItem!!,
+            onDismiss = { showEditDialog = false },
+            onSave = { newValue ->
+                when (editingItem!!.label) {
+                    "姓名" -> userProfileViewModel.updateUserInfo(
+                        name = newValue,
+                        birthDate = userProfile?.birthDate ?: "1995年3月15日",
+                        zodiac = userProfile?.zodiac ?: "双鱼座",
+                        signature = userProfile?.signature ?: "热爱生活，追求梦想"
+                    )
+                    "出生日期" -> userProfileViewModel.updateUserInfo(
+                        name = userProfile?.name ?: "张三",
+                        birthDate = newValue,
+                        zodiac = userProfile?.zodiac ?: "双鱼座",
+                        signature = userProfile?.signature ?: "热爱生活，追求梦想"
+                    )
+                    "星座" -> userProfileViewModel.updateUserInfo(
+                        name = userProfile?.name ?: "张三",
+                        birthDate = userProfile?.birthDate ?: "1995年3月15日",
+                        zodiac = newValue,
+                        signature = userProfile?.signature ?: "热爱生活，追求梦想"
+                    )
+                    "个性签名" -> userProfileViewModel.updateUserInfo(
+                        name = userProfile?.name ?: "张三",
+                        birthDate = userProfile?.birthDate ?: "1995年3月15日",
+                        zodiac = userProfile?.zodiac ?: "双鱼座",
+                        signature = newValue
+                    )
+                }
+                showEditDialog = false
             }
         )
     }
@@ -199,7 +245,10 @@ fun ProfileHeader(
 }
 
 @Composable
-fun PersonalInfoList(userProfile: com.example.kotlin.data.UserProfileEntity?) {
+fun PersonalInfoList(
+    userProfile: com.example.kotlin.data.UserProfileEntity?,
+    onEditClick: (PersonalInfoItem) -> Unit
+) {
     val personalInfo = listOf(
         PersonalInfoItem("姓名", userProfile?.name ?: "张三", Icons.Default.Person),
         PersonalInfoItem("出生日期", userProfile?.birthDate ?: "1995年3月15日", Icons.Default.Star),
@@ -218,7 +267,8 @@ fun PersonalInfoList(userProfile: com.example.kotlin.data.UserProfileEntity?) {
             personalInfo.forEachIndexed { index, item ->
                 PersonalInfoRow(
                     item = item,
-                    isLast = index == personalInfo.size - 1
+                    isLast = index == personalInfo.size - 1,
+                    onEditClick = { onEditClick(item) }
                 )
             }
         }
@@ -228,11 +278,13 @@ fun PersonalInfoList(userProfile: com.example.kotlin.data.UserProfileEntity?) {
 @Composable
 fun PersonalInfoRow(
     item: PersonalInfoItem,
-    isLast: Boolean
+    isLast: Boolean,
+    onEditClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onEditClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -261,15 +313,13 @@ fun PersonalInfoRow(
             )
         }
         
-        // 编辑图标（仅对签名显示）
-        if (item.label == "个性签名") {
-            Icon(
-                Icons.Default.Edit,
-                contentDescription = "编辑",
-                tint = Color.Gray,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        // 编辑图标
+        Icon(
+            Icons.Default.Edit,
+            contentDescription = "编辑",
+            tint = Color.Gray,
+            modifier = Modifier.size(20.dp)
+        )
     }
     
     // 分割线（除了最后一项）
@@ -468,6 +518,63 @@ fun ImagePickerDialog(
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("取消")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EditInfoDialog(
+    item: PersonalInfoItem,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var textValue by remember { mutableStateOf(item.value) }
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "编辑 ${item.label}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                TextField(
+                    value = textValue,
+                    onValueChange = { newValue ->
+                        textValue = newValue
+                    },
+                    label = { Text(item.label) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("取消")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSave(textValue) }
+                    ) {
+                        Text("保存")
+                    }
                 }
             }
         }
