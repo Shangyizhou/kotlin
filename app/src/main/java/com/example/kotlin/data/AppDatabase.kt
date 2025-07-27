@@ -9,8 +9,8 @@ import androidx.room.RoomDatabase
  * 应用数据库
  */
 @Database(
-    entities = [ChatMessageEntity::class, UserProfileEntity::class, ChatSessionEntity::class],
-    version = 3,
+    entities = [ChatMessageEntity::class, UserProfileEntity::class, ChatSessionEntity::class, UserAuthEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -18,6 +18,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun userProfileDao(): UserProfileDao
     abstract fun chatSessionDao(): ChatSessionDao
+    abstract fun userAuthDao(): UserAuthDao
     
     companion object {
         @Volatile

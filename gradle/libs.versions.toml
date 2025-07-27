@@ -20,6 +20,7 @@ gson = "2.10.1"
 coroutines = "1.7.3"
 room = "2.6.1"
 roomRuntimeAndroid = "2.7.2"
+animationCoreLint = "1.8.3"
 
 [libraries]
 androidx-navigation-compose = {group = "androidx.navigation",name = "navigation-compose",version.ref = "navigationCompose"}
@@ -57,6 +58,7 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-runtime-android = { group = "androidx.room", name = "room-runtime-android", version.ref = "roomRuntimeAndroid" }
+androidx-animation-core-lint = { group = "androidx.compose.animation", name = "animation-core-lint", version.ref = "animationCoreLint" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

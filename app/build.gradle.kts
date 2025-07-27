@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.room.runtime.android)
+    implementation(libs.androidx.animation.core.lint)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -85,4 +86,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    
+    // 微信SDK
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android-without-mta:6.8.0")
 }

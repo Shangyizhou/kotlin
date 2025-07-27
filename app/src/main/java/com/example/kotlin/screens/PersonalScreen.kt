@@ -40,7 +40,9 @@ import androidx.compose.foundation.text.BasicTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PersonalScreen() {
+fun PersonalScreen(
+    onLogout: () -> Unit = {}
+) {
     val context = LocalContext.current
     val userProfileViewModel: UserProfileViewModel = viewModel(
         factory = UserProfileViewModelFactory(context)
@@ -112,7 +114,8 @@ fun PersonalScreen() {
                 onEditClick = { item ->
                     editingItem = item
                     showEditDialog = true
-                }
+                },
+                onLogout = onLogout
             )
         }
         
@@ -247,7 +250,8 @@ fun ProfileHeader(
 @Composable
 fun PersonalInfoList(
     userProfile: com.example.kotlin.data.UserProfileEntity?,
-    onEditClick: (PersonalInfoItem) -> Unit
+    onEditClick: (PersonalInfoItem) -> Unit,
+    onLogout: () -> Unit = {}
 ) {
     val personalInfo = listOf(
         PersonalInfoItem("姓名", userProfile?.name ?: "张三", Icons.Default.Person),
@@ -269,6 +273,51 @@ fun PersonalInfoList(
                     item = item,
                     isLast = index == personalInfo.size - 1,
                     onEditClick = { onEditClick(item) }
+                )
+            }
+            
+            // 添加登出选项
+            Divider(
+                modifier = Modifier.padding(start = 56.dp),
+                color = Color(0xFFE0E0E0),
+                thickness = 1.dp
+            )
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLogout() }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.ExitToApp,
+                    contentDescription = null,
+                    tint = Color.Red,
+                    modifier = Modifier.size(24.dp)
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "退出登录",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "退出当前账号",
+                        fontSize = 16.sp,
+                        color = Color.Red,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Icon(
+                    Icons.Default.KeyboardArrowRight,
+                    contentDescription = "退出登录",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
